@@ -1,0 +1,53 @@
+import { Ionicons } from '@expo/vector-icons';
+import { ActivityIndicator, Dimensions, Text, View } from 'react-native';
+import Animated, { useAnimatedScrollHandler, type SharedValue } from 'react-native-reanimated';
+
+import { SetLogRow } from '@/components/SetLogRow';
+import { useWorkoutStore, type SetLog } from '@/store/workoutStore';
+
+type Props = {
+  scrollY: SharedValue<number>;
+  onPickExercise: (logId: number) => void;
+};
+
+export function SetLogList({ scrollY, onPickExercise }: Props) {
+  const setLogs = useWorkoutStore((s) => s.setLogs);
+  const loading = useWorkoutStore((s) => s.loading);
+
+  const scrollHandler = useAnimatedScrollHandler((event) => {
+    scrollY.value = event.contentOffset.y;
+  });
+
+  if (loading && setLogs.length === 0) {
+    return (
+      <View className="flex-1 items-center justify-center">
+        <ActivityIndicator size="large" color="#6366f1" />
+      </View>
+    );
+  }
+
+  return (
+    <Animated.FlatList
+      data={setLogs}
+      keyExtractor={(item: SetLog) => String(item.id)}
+      renderItem={({ item }) => <SetLogRow log={item} onPickExercise={onPickExercise} />}
+      onScroll={scrollHandler}
+      scrollEventThrottle={16}
+      contentContainerStyle={{
+        padding: 16,
+        paddingBottom: 140,
+        // リストが短くてもヘッダーを折りたためるよう、常にスクロール可能な高さを確保
+        minHeight: setLogs.length > 0 ? Dimensions.get('window').height + 128 : undefined,
+        flexGrow: 1,
+      }}
+      keyboardShouldPersistTaps="handled"
+      ListEmptyComponent={
+        <View className="flex-1 items-center justify-center pb-24">
+          <Ionicons name="barbell-outline" size={48} color="#d1d5db" />
+          <Text className="mt-3 text-base font-medium text-gray-400">記録がありません</Text>
+          <Text className="mt-1 text-sm text-gray-400">右下の＋ボタンでセットを追加</Text>
+        </View>
+      }
+    />
+  );
+}
