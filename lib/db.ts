@@ -1,7 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 
 const DATABASE_NAME = 'beatlift.db';
-const DATABASE_VERSION = 1;
+const DATABASE_VERSION = 2;
 
 export type ExerciseRow = {
   id: number;
@@ -18,6 +18,7 @@ export type SetLogRow = {
   weight: number;
   reps: number;
   set_order: number;
+  completed: number;
   created_at: string;
 };
 
@@ -95,6 +96,7 @@ async function migrateDbIfNeeded(db: SQLite.SQLiteDatabase) {
           weight      REAL NOT NULL DEFAULT 0,
           reps        INTEGER NOT NULL DEFAULT 0,
           set_order   INTEGER DEFAULT 0,
+          completed   INTEGER NOT NULL DEFAULT 0,
           created_at  TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_setlogs_session ON set_logs(session_id);
@@ -112,7 +114,14 @@ async function migrateDbIfNeeded(db: SQLite.SQLiteDatabase) {
         await statement.finalizeAsync();
       }
     });
-    currentVersion = 1;
+    // v0 の CREATE TABLE は既に最新スキーマ(completed を含む)なので、以降の ALTER は飛ばす
+    currentVersion = DATABASE_VERSION;
+  }
+
+  if (currentVersion === 1) {
+    // 既存 v1 DB へ完了フラグ列を追加(v0 から作った場合は上で最新版に到達済みのため通らない)
+    await db.execAsync('ALTER TABLE set_logs ADD COLUMN completed INTEGER NOT NULL DEFAULT 0');
+    currentVersion = 2;
   }
 
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
@@ -166,7 +175,7 @@ export async function insertSetLog(
 
 export async function updateSetLogRow(
   id: number,
-  patch: { exerciseId?: number | null; weight?: number; reps?: number }
+  patch: { exerciseId?: number | null; weight?: number; reps?: number; completed?: number }
 ): Promise<void> {
   const sets: string[] = [];
   const values: SQLite.SQLiteBindValue[] = [];
@@ -182,6 +191,10 @@ export async function updateSetLogRow(
     sets.push('reps = ?');
     values.push(patch.reps);
   }
+  if (patch.completed !== undefined) {
+    sets.push('completed = ?');
+    values.push(patch.completed);
+  }
   if (sets.length === 0) return;
   const db = await getDb();
   await db.runAsync(`UPDATE set_logs SET ${sets.join(', ')} WHERE id = ?`, ...values, id);
@@ -190,4 +203,202 @@ export async function updateSetLogRow(
 export async function deleteSetLog(id: number): Promise<void> {
   const db = await getDb();
   await db.runAsync('DELETE FROM set_logs WHERE id = ?', id);
+}
+
+/** セッション内の特定種目のセットを一括削除。null は exercise_id IS NULL を対象にする */
+export async function deleteSetLogsByExercise(
+  sessionId: number,
+  exerciseId: number | null
+): Promise<void> {
+  const db = await getDb();
+  if (exerciseId === null) {
+    await db.runAsync(
+      'DELETE FROM set_logs WHERE session_id = ? AND exercise_id IS NULL',
+      sessionId
+    );
+  } else {
+    await db.runAsync(
+      'DELETE FROM set_logs WHERE session_id = ? AND exercise_id = ?',
+      sessionId,
+      exerciseId
+    );
+  }
+}
+
+/** セッション内の特定種目のセットを別種目に付け替える。from が null は IS NULL を対象にする */
+export async function changeSetLogsExercise(
+  sessionId: number,
+  from: number | null,
+  to: number
+): Promise<void> {
+  const db = await getDb();
+  if (from === null) {
+    await db.runAsync(
+      'UPDATE set_logs SET exercise_id = ? WHERE session_id = ? AND exercise_id IS NULL',
+      to,
+      sessionId
+    );
+  } else {
+    await db.runAsync(
+      'UPDATE set_logs SET exercise_id = ? WHERE session_id = ? AND exercise_id = ?',
+      to,
+      sessionId,
+      from
+    );
+  }
+}
+
+/** セッションのメモを取得。未設定(null)は空文字を返す */
+export async function getSessionNote(sessionId: number): Promise<string> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ note: string | null }>(
+    'SELECT note FROM workout_sessions WHERE id = ?',
+    sessionId
+  );
+  return row?.note ?? '';
+}
+
+export async function updateSessionNote(sessionId: number, note: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('UPDATE workout_sessions SET note = ? WHERE id = ?', note, sessionId);
+}
+
+/** カスタム種目を追加。is_default=0、sort_order は既存の最大値+1 */
+export async function insertExercise(name: string, bodyPart: string | null): Promise<number> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ maxOrder: number | null }>(
+    'SELECT MAX(sort_order) AS maxOrder FROM exercises'
+  );
+  const sortOrder = (row?.maxOrder ?? -1) + 1;
+  const result = await db.runAsync(
+    'INSERT INTO exercises (name, body_part, is_default, sort_order) VALUES (?, ?, 0, ?)',
+    name,
+    bodyPart,
+    sortOrder
+  );
+  return result.lastInsertRowId;
+}
+
+/**
+ * beforeDate より前の、その種目を実施した直近日の全セットを返す。
+ * weight>0 または reps>0 のセットがある日を「実施日」とみなす。
+ */
+export async function getLastPerformance(
+  exerciseId: number,
+  beforeDate: string
+): Promise<{ date: string; sets: { weight: number; reps: number }[] } | null> {
+  const db = await getDb();
+  const dateRow = await db.getFirstAsync<{ date: string }>(
+    `SELECT s.date AS date
+       FROM set_logs l
+       JOIN workout_sessions s ON s.id = l.session_id
+      WHERE l.exercise_id = ? AND s.date < ? AND (l.weight > 0 OR l.reps > 0)
+      ORDER BY s.date DESC
+      LIMIT 1`,
+    exerciseId,
+    beforeDate
+  );
+  if (!dateRow) return null;
+  const sets = await db.getAllAsync<{ weight: number; reps: number }>(
+    `SELECT l.weight AS weight, l.reps AS reps
+       FROM set_logs l
+       JOIN workout_sessions s ON s.id = l.session_id
+      WHERE l.exercise_id = ? AND s.date = ? AND (l.weight > 0 OR l.reps > 0)
+      ORDER BY l.set_order, l.id`,
+    exerciseId,
+    dateRow.date
+  );
+  return { date: dateRow.date, sets };
+}
+
+/** beforeDate より前の全セットから Epley 式の推定1RM 最大値を返す。なければ 0 */
+export async function getBestE1RM(exerciseId: number, beforeDate: string): Promise<number> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ best: number | null }>(
+    `SELECT MAX(
+              CASE
+                WHEN l.reps = 1 THEN l.weight
+                WHEN l.reps > 0 AND l.weight > 0 THEN l.weight * (1.0 + l.reps / 30.0)
+                ELSE 0
+              END
+            ) AS best
+       FROM set_logs l
+       JOIN workout_sessions s ON s.id = l.session_id
+      WHERE l.exercise_id = ? AND s.date < ?`,
+    exerciseId,
+    beforeDate
+  );
+  return Math.round(row?.best ?? 0);
+}
+
+/** beforeDate より前で、セットを1件以上持つ直近セッションの総ボリューム */
+export async function getPreviousSessionVolume(
+  beforeDate: string
+): Promise<{ date: string; volume: number } | null> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ date: string; volume: number }>(
+    `SELECT s.date AS date, SUM(l.weight * l.reps) AS volume
+       FROM workout_sessions s
+       JOIN set_logs l ON l.session_id = s.id
+      WHERE s.date < ?
+      GROUP BY s.id
+      ORDER BY s.date DESC
+      LIMIT 1`,
+    beforeDate
+  );
+  if (!row) return null;
+  return { date: row.date, volume: row.volume ?? 0 };
+}
+
+/** セットを1件以上持つセッションを date 降順で返す(履歴一覧用) */
+export async function listRecentSessions(
+  limit: number
+): Promise<
+  {
+    id: number;
+    date: string;
+    note: string | null;
+    volume: number;
+    setCount: number;
+    exerciseNames: string | null;
+  }[]
+> {
+  const db = await getDb();
+  return db.getAllAsync<{
+    id: number;
+    date: string;
+    note: string | null;
+    volume: number;
+    setCount: number;
+    exerciseNames: string | null;
+  }>(
+    `SELECT s.id AS id,
+            s.date AS date,
+            s.note AS note,
+            SUM(l.weight * l.reps) AS volume,
+            COUNT(l.id) AS setCount,
+            GROUP_CONCAT(DISTINCT e.name) AS exerciseNames
+       FROM workout_sessions s
+       JOIN set_logs l ON l.session_id = s.id
+       LEFT JOIN exercises e ON e.id = l.exercise_id
+      GROUP BY s.id
+      ORDER BY s.date DESC
+      LIMIT ?`,
+    limit
+  );
+}
+
+/** 指定月(monthPrefix 例: '2026-06')の、セットを持つセッション数と総ボリューム */
+export async function getMonthlyStats(
+  monthPrefix: string
+): Promise<{ sessions: number; volume: number }> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ sessions: number; volume: number | null }>(
+    `SELECT COUNT(DISTINCT s.id) AS sessions, SUM(l.weight * l.reps) AS volume
+       FROM workout_sessions s
+       JOIN set_logs l ON l.session_id = s.id
+      WHERE s.date LIKE ? || '%'`,
+    monthPrefix
+  );
+  return { sessions: row?.sessions ?? 0, volume: row?.volume ?? 0 };
 }

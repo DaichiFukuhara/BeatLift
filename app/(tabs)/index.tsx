@@ -6,19 +6,25 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AddSetFab } from '@/components/AddSetFab';
 import { CollapsingHeader } from '@/components/CollapsingHeader';
 import { ExercisePickerSheet } from '@/components/ExercisePickerSheet';
+import { NoteModal } from '@/components/NoteModal';
+import { RestTimerBar } from '@/components/RestTimerBar';
 import { SetLogList } from '@/components/SetLogList';
 import { useWorkoutStore } from '@/store/workoutStore';
+
+type PickerState =
+  | { mode: 'add' }
+  | { mode: 'change'; groupKey: string; exerciseId: number | null }
+  | null;
 
 export default function HomeScreen() {
   const scrollY = useSharedValue(0);
   const init = useWorkoutStore((s) => s.init);
-  const addSetLog = useWorkoutStore((s) => s.addSetLog);
-  const updateSetLog = useWorkoutStore((s) => s.updateSetLog);
-  const setLogs = useWorkoutStore((s) => s.setLogs);
+  const addSetForExercise = useWorkoutStore((s) => s.addSetForExercise);
+  const changeGroupExercise = useWorkoutStore((s) => s.changeGroupExercise);
 
-  // 種目選択シートを開いている行のID(null = 閉じている)
-  const [pickerLogId, setPickerLogId] = useState<number | null>(null);
-  const pickerLog = setLogs.find((l) => l.id === pickerLogId);
+  // 種目選択シートの状態(null = 閉じている)
+  const [picker, setPicker] = useState<PickerState>(null);
+  const [noteVisible, setNoteVisible] = useState(false);
 
   useEffect(() => {
     init();
@@ -26,25 +32,34 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
-      <CollapsingHeader scrollY={scrollY} />
+      <CollapsingHeader scrollY={scrollY} onPressNote={() => setNoteVisible(true)} />
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <SetLogList scrollY={scrollY} onPickExercise={setPickerLogId} />
-      </KeyboardAvoidingView>
-      <AddSetFab onPress={addSetLog} />
-      <ExercisePickerSheet
-        visible={pickerLogId != null}
-        selectedExerciseId={pickerLog?.exerciseId ?? null}
-        onSelect={(exerciseId) => {
-          if (pickerLogId != null) {
-            updateSetLog(pickerLogId, { exerciseId });
+        <SetLogList
+          scrollY={scrollY}
+          onPickExercise={(groupKey, exerciseId) =>
+            setPicker({ mode: 'change', groupKey, exerciseId })
           }
-          setPickerLogId(null);
+        />
+      </KeyboardAvoidingView>
+      <RestTimerBar />
+      <AddSetFab onPress={() => setPicker({ mode: 'add' })} />
+      <ExercisePickerSheet
+        visible={picker != null}
+        selectedExerciseId={picker?.mode === 'change' ? picker.exerciseId : null}
+        onSelect={(exerciseId) => {
+          if (picker?.mode === 'add') {
+            addSetForExercise(exerciseId);
+          } else if (picker?.mode === 'change') {
+            changeGroupExercise(picker.exerciseId, exerciseId);
+          }
+          setPicker(null);
         }}
-        onClose={() => setPickerLogId(null)}
+        onClose={() => setPicker(null)}
       />
+      <NoteModal visible={noteVisible} onClose={() => setNoteVisible(false)} />
     </SafeAreaView>
   );
 }
