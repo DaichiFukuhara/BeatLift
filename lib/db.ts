@@ -408,6 +408,46 @@ export async function listRecentSessions(
   );
 }
 
+/** 全期間の月ごとの総ボリューム */
+export async function getMonthlyVolumes(): Promise<{ month: string; volume: number }[]> {
+  const db = await getDb();
+  return db.getAllAsync<{ month: string; volume: number }>(
+    `SELECT substr(s.date, 1, 7) AS month, SUM(l.weight * l.reps) AS volume
+       FROM workout_sessions s
+       JOIN set_logs l ON l.session_id = s.id
+      GROUP BY month
+      ORDER BY month ASC`
+  );
+}
+
+/** 種目ごとの推定1RM推移(Epley式) */
+export async function get1RMHistory(
+  exerciseId: number
+): Promise<{ date: string; rm: number }[]> {
+  const db = await getDb();
+  return db.getAllAsync<{ date: string; rm: number }>(
+    `SELECT s.date, MAX(l.weight * (1.0 + l.reps / 30.0)) AS rm
+       FROM set_logs l
+       JOIN workout_sessions s ON s.id = l.session_id
+      WHERE l.exercise_id = ?
+        AND l.reps > 0
+      GROUP BY s.date
+      ORDER BY s.date ASC`,
+    exerciseId
+  );
+}
+
+/** セット記録がある種目の一覧 */
+export async function getExercisesWithHistory(): Promise<{ id: number; name: string }[]> {
+  const db = await getDb();
+  return db.getAllAsync<{ id: number; name: string }>(
+    `SELECT DISTINCT e.id, e.name
+       FROM exercises e
+       JOIN set_logs l ON l.exercise_id = e.id
+      ORDER BY e.sort_order, e.name`
+  );
+}
+
 /** 指定月(monthPrefix 例: '2026-06')の、セットを持つセッション数と総ボリューム */
 export async function getMonthlyStats(
   monthPrefix: string
