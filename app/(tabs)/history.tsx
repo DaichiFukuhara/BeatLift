@@ -1,21 +1,37 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { Pressable, SectionList, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { SessionDetailSheet } from '@/components/SessionDetailSheet';
 import * as repo from '@/lib/db';
 import { formatMonthDay, monthPrefix, todayKey } from '@/lib/date';
-import { useWorkoutStore } from '@/store/workoutStore';
 
 type SessionRow = Awaited<ReturnType<typeof repo.listRecentSessions>>[number];
+type Section = { title: string; data: SessionRow[] };
+
+function toSections(sessions: SessionRow[]): Section[] {
+  const map = new Map<string, SessionRow[]>();
+  for (const s of sessions) {
+    const key = monthPrefix(s.date);
+    let arr = map.get(key);
+    if (!arr) {
+      arr = [];
+      map.set(key, arr);
+    }
+    arr.push(s);
+  }
+  return Array.from(map.entries()).map(([key, data]) => {
+    const [y, m] = key.split('-');
+    return { title: `${y}年${Number(m)}月`, data };
+  });
+}
 
 export default function HistoryScreen() {
-  const router = useRouter();
-  const loadSession = useWorkoutStore((s) => s.loadSession);
-
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [monthlyStats, setMonthlyStats] = useState({ sessions: 0, volume: 0 });
+  const [detailSession, setDetailSession] = useState<SessionRow | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -31,10 +47,7 @@ export default function HistoryScreen() {
     }, [])
   );
 
-  const onPressSession = (date: string) => {
-    loadSession(date);
-    router.navigate('/');
-  };
+  const sections = toSections(sessions);
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
@@ -45,13 +58,18 @@ export default function HistoryScreen() {
           kg
         </Text>
       </View>
-      <FlatList
-        data={sessions}
+
+      <SectionList
+        sections={sections}
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24, flexGrow: 1 }}
+        stickySectionHeadersEnabled={false}
+        renderSectionHeader={({ section }) => (
+          <Text className="mb-1 mt-4 text-xs font-semibold text-gray-400">{section.title}</Text>
+        )}
         renderItem={({ item }) => (
           <Pressable
-            onPress={() => onPressSession(item.date)}
+            onPress={() => setDetailSession(item)}
             className="mb-2 rounded-2xl bg-white px-4 py-3 active:bg-gray-50"
           >
             <View className="flex-row items-center justify-between">
@@ -91,6 +109,11 @@ export default function HistoryScreen() {
             </Text>
           </View>
         }
+      />
+
+      <SessionDetailSheet
+        session={detailSession}
+        onClose={() => setDetailSession(null)}
       />
     </SafeAreaView>
   );

@@ -350,6 +350,26 @@ export async function getPreviousSessionVolume(
   return { date: row.date, volume: row.volume ?? 0 };
 }
 
+/** セッションの全セットを種目名付きで返す(詳細シート用) */
+export async function getSessionSets(
+  sessionId: number
+): Promise<{ exerciseName: string | null; weight: number; reps: number; setOrder: number }[]> {
+  const db = await getDb();
+  return db.getAllAsync<{
+    exerciseName: string | null;
+    weight: number;
+    reps: number;
+    setOrder: number;
+  }>(
+    `SELECT e.name AS exerciseName, l.weight, l.reps, l.set_order AS setOrder
+       FROM set_logs l
+       LEFT JOIN exercises e ON e.id = l.exercise_id
+      WHERE l.session_id = ?
+      ORDER BY l.set_order, l.id`,
+    sessionId
+  );
+}
+
 /** セットを1件以上持つセッションを date 降順で返す(履歴一覧用) */
 export async function listRecentSessions(
   limit: number
