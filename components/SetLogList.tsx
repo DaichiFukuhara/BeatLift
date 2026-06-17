@@ -1,18 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useMemo } from 'react';
 import { ActivityIndicator, Dimensions, Text, View } from 'react-native';
 import Animated, { useAnimatedScrollHandler, type SharedValue } from 'react-native-reanimated';
 
-import { SetLogRow } from '@/components/SetLogRow';
-import { useWorkoutStore, type SetLog } from '@/store/workoutStore';
+import { ExerciseGroupCard } from '@/components/ExerciseGroupCard';
+import { groupSetLogs, useWorkoutStore, type ExerciseGroup } from '@/store/workoutStore';
 
 type Props = {
   scrollY: SharedValue<number>;
-  onPickExercise: (logId: number) => void;
+  onPickExercise: (groupKey: string, currentExerciseId: number | null) => void;
 };
 
 export function SetLogList({ scrollY, onPickExercise }: Props) {
   const setLogs = useWorkoutStore((s) => s.setLogs);
   const loading = useWorkoutStore((s) => s.loading);
+
+  const groups = useMemo(() => groupSetLogs(setLogs), [setLogs]);
 
   const scrollHandler = useAnimatedScrollHandler((event) => {
     scrollY.value = event.contentOffset.y;
@@ -28,9 +31,11 @@ export function SetLogList({ scrollY, onPickExercise }: Props) {
 
   return (
     <Animated.FlatList
-      data={setLogs}
-      keyExtractor={(item: SetLog) => String(item.id)}
-      renderItem={({ item }) => <SetLogRow log={item} onPickExercise={onPickExercise} />}
+      data={groups}
+      keyExtractor={(item: ExerciseGroup) => item.key}
+      renderItem={({ item }) => (
+        <ExerciseGroupCard group={item} onPickExercise={onPickExercise} />
+      )}
       onScroll={scrollHandler}
       scrollEventThrottle={16}
       contentContainerStyle={{
@@ -45,7 +50,7 @@ export function SetLogList({ scrollY, onPickExercise }: Props) {
         <View className="flex-1 items-center justify-center pb-24">
           <Ionicons name="barbell-outline" size={48} color="#d1d5db" />
           <Text className="mt-3 text-base font-medium text-gray-400">記録がありません</Text>
-          <Text className="mt-1 text-sm text-gray-400">右下の＋ボタンでセットを追加</Text>
+          <Text className="mt-1 text-sm text-gray-400">右下の＋ボタンで種目を追加</Text>
         </View>
       }
     />

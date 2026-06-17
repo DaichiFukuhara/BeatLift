@@ -48,3 +48,20 @@ export function formatHeaderDate(key: string): string {
 export function isToday(key: string): boolean {
   return key === todayKey();
 }
+
+/** 例: 6/8 */
+export function formatShortDate(key: string): string {
+  const date = parseDateKey(key);
+  return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
+/** 例: 6月8日(月) */
+export function formatMonthDay(key: string): string {
+  const date = parseDateKey(key);
+  return `${date.getMonth() + 1}月${date.getDate()}日(${WEEKDAY_LABELS[date.getDay()]})`;
+}
+
+/** 例: 2026-06-08 → 2026-06 */
+export function monthPrefix(key: string): string {
+  return key.slice(0, 7);
+}
