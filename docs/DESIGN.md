@@ -15,6 +15,7 @@
 - **データはすべて端末内（SQLite）に保存**。サーバー・ログイン・通信は無い（完全オフライン）
 
 ### 大切にする3つの価値
+
 判断に迷ったときは、この優先順位に沿って決める。
 
 1. **簡単で速い UI/UX** … トレーニングの合間に迷わず最速で入力できること。タップ数・待ち時間を最小化する。
@@ -22,6 +23,7 @@
 3. **高い信頼性** … 記録が消えない・ズレない。オフラインでも確実に保存し、データの整合を守る。
 
 ### 主な機能
+
 - 日付ごとのトレーニング記録（1日 = 1セッション）
 - 種目を選んでセット（重量×レップ）を追加・編集・削除
 - 同じ種目のセットはカード単位でグループ表示
@@ -35,16 +37,16 @@
 
 ## 2. 技術スタック
 
-| 領域 | 採用技術 | 備考 |
-|---|---|---|
-| フレームワーク | Expo SDK 54 / React Native 0.81 | New Architecture 有効 |
-| 言語 | TypeScript 5.9 | |
-| ルーティング | expo-router 6（ファイルベース） | typedRoutes 有効 |
-| 状態管理 | Zustand 5 | 単一ストア |
-| 永続化 | expo-sqlite 16 | WAL モード・外部キー有効 |
-| スタイリング | NativeWind 4（Tailwind 記法） | `className` で記述 |
-| アニメーション | react-native-reanimated 4 | ヘッダー折りたたみ等 |
-| その他 | expo-haptics（触覚）, @expo/vector-icons（アイコン） | |
+| 領域           | 採用技術                                             | 備考                     |
+| -------------- | ---------------------------------------------------- | ------------------------ |
+| フレームワーク | Expo SDK 54 / React Native 0.81                      | New Architecture 有効    |
+| 言語           | TypeScript 5.9                                       |                          |
+| ルーティング   | expo-router 6（ファイルベース）                      | typedRoutes 有効         |
+| 状態管理       | Zustand 5                                            | 単一ストア               |
+| 永続化         | expo-sqlite 16                                       | WAL モード・外部キー有効 |
+| スタイリング   | NativeWind 4（Tailwind 記法）                        | `className` で記述       |
+| アニメーション | react-native-reanimated 4                            | ヘッダー折りたたみ等     |
+| その他         | expo-haptics（触覚）, @expo/vector-icons（アイコン） |                          |
 
 ---
 
@@ -106,48 +108,54 @@ DB名 `beatlift.db` / 現行スキーマバージョン **2**（`lib/db.ts` の 
 ### テーブル
 
 #### `exercises`（種目マスタ）
-| 列 | 型 | 説明 |
-|---|---|---|
-| id | INTEGER PK | |
-| name | TEXT | 種目名（例: ベンチプレス） |
-| body_part | TEXT? | 部位（胸・背中・脚・肩・腕・腹） |
-| is_default | INTEGER | 1=プリセット種目, 0=ユーザー追加 |
-| sort_order | INTEGER | 表示順 |
+
+| 列         | 型         | 説明                             |
+| ---------- | ---------- | -------------------------------- |
+| id         | INTEGER PK |                                  |
+| name       | TEXT       | 種目名（例: ベンチプレス）       |
+| body_part  | TEXT?      | 部位（胸・背中・脚・肩・腕・腹） |
+| is_default | INTEGER    | 1=プリセット種目, 0=ユーザー追加 |
+| sort_order | INTEGER    | 表示順                           |
 
 - 起動時、初回のみ `DEFAULT_EXERCISES`（23種目）をシード投入。
 
 #### `workout_sessions`（1日のトレーニング）
-| 列 | 型 | 説明 |
-|---|---|---|
-| id | INTEGER PK | |
-| date | TEXT UNIQUE | 'YYYY-MM-DD'。**1日1セッション**（UNIQUE 制約） |
-| started_at / ended_at | TEXT? | 予約列（現状ほぼ未使用） |
-| note | TEXT? | その日のメモ |
+
+| 列                    | 型          | 説明                                            |
+| --------------------- | ----------- | ----------------------------------------------- |
+| id                    | INTEGER PK  |                                                 |
+| date                  | TEXT UNIQUE | 'YYYY-MM-DD'。**1日1セッション**（UNIQUE 制約） |
+| started_at / ended_at | TEXT?       | 予約列（現状ほぼ未使用）                        |
+| note                  | TEXT?       | その日のメモ                                    |
 
 #### `set_logs`（1セット = 1行）
-| 列 | 型 | 説明 |
-|---|---|---|
-| id | INTEGER PK | |
-| session_id | INTEGER FK | → sessions（ON DELETE CASCADE） |
+
+| 列          | 型          | 説明                                                   |
+| ----------- | ----------- | ------------------------------------------------------ |
+| id          | INTEGER PK  |                                                        |
+| session_id  | INTEGER FK  | → sessions（ON DELETE CASCADE）                        |
 | exercise_id | INTEGER FK? | → exercises。**NULL 可**（種目未選択の下書き行を許す） |
-| weight | REAL | 重量(kg) |
-| reps | INTEGER | レップ数 |
-| set_order | INTEGER | セッション内の並び順 |
-| completed | INTEGER | 0/1（完了チェック） |
-| created_at | TEXT | ISO 文字列 |
+| weight      | REAL        | 重量(kg)                                               |
+| reps        | INTEGER     | レップ数                                               |
+| set_order   | INTEGER     | セッション内の並び順                                   |
+| completed   | INTEGER     | 0/1（完了チェック）                                    |
+| created_at  | TEXT        | ISO 文字列                                             |
 
 ### リレーション図
+
 ```
 exercises 1 ──< set_logs >── 1 workout_sessions
             (exercise_id)   (session_id, CASCADE削除)
 ```
 
 ### マイグレーション方針（`migrateDbIfNeeded`）
+
 - `PRAGMA user_version` を見て、現行版未満なら段階的に更新。
 - v0（新規）→ 最新スキーマで一括 CREATE ＆ シード。
 - v1 の既存 DB → `set_logs.completed` 列を ALTER で追加。
 
 ### 派生値・集計（DB 側で計算）
+
 - **総ボリューム** = Σ(weight × reps)
 - **推定1RM（E1RM, Epley 式）** = reps=1 なら weight、それ以外 `weight × (1 + reps/30)`
   - `lib/rm.ts`（画面表示用）と `lib/db.ts` の `getBestE1RM`（過去最大の集計用）に同じ式がある
@@ -160,18 +168,20 @@ exercises 1 ──< set_logs >── 1 workout_sessions
 単一の Zustand ストア。**「表示中の1日分の状態」**を中心に持つ。
 
 ### 主な state
-| キー | 意味 |
-|---|---|
-| selectedDate | 表示中の日付 'YYYY-MM-DD'（初期=今日） |
-| sessionId | その日のセッションID |
-| exercises | 種目マスタ一覧 |
-| setLogs | 表示中セッションのセット配列 |
-| note | 表示中セッションのメモ |
-| prevSession | selectedDate より前の直近セッション（前回比表示用） |
+
+| キー              | 意味                                                              |
+| ----------------- | ----------------------------------------------------------------- |
+| selectedDate      | 表示中の日付 'YYYY-MM-DD'（初期=今日）                            |
+| sessionId         | その日のセッションID                                              |
+| exercises         | 種目マスタ一覧                                                    |
+| setLogs           | 表示中セッションのセット配列                                      |
+| note              | 表示中セッションのメモ                                            |
+| prevSession       | selectedDate より前の直近セッション（前回比表示用）               |
 | historyByExercise | 種目ごとの「前回実績＋自己ベスト1RM」キャッシュ（日付切替で破棄） |
-| restTimer | インターバルタイマー `{ endsAt, totalSec }`（null=非稼働） |
+| restTimer         | インターバルタイマー `{ endsAt, totalSec }`（null=非稼働）        |
 
 ### 主な action
+
 - `init` … 起動時：種目ロード → 今日のセッションロード
 - `loadSession(date)` … 日付のセッションを取得（無ければ作成）し state を差し替え
   - **連打対策**: 非同期完了時に `selectedDate` が変わっていたら結果を破棄
@@ -183,6 +193,7 @@ exercises 1 ──< set_logs >── 1 workout_sessions
 - `startRestTimer` / `adjustRestTimer` / `stopRestTimer` … タイマー操作（既定90秒）
 
 ### 派生セレクタ（純関数）
+
 - `selectTotalVolume` / `selectTotalSets` / `selectCompletedSets`
 - `groupSetLogs(setLogs)` … exercise_id ごとに出現順でグループ化（カード表示の素）
 
@@ -191,6 +202,7 @@ exercises 1 ──< set_logs >── 1 workout_sessions
 ## 7. 画面設計
 
 ### ナビゲーション
+
 ```
 RootLayout (app/_layout.tsx)
   └─ Stack
@@ -200,7 +212,9 @@ RootLayout (app/_layout.tsx)
 ```
 
 ### ① ホーム = 記録画面（`app/(tabs)/index.tsx`）
+
 トレーニング中のメイン画面。構成:
+
 - **CollapsingHeader** … 週カレンダー＋日付＋総重量＋前回比。スクロールで折りたたむ
 - **SetLogList** … セットを種目カード（ExerciseGroupCard）で縦に並べる本体
 - **RestTimerBar** … インターバル稼働中だけ下部に出るタイマーバー
@@ -211,6 +225,7 @@ RootLayout (app/_layout.tsx)
 `picker` の状態で「新規追加(add)」か「種目変更(change)」かを区別する。
 
 ### ② 履歴画面（`app/(tabs)/history.tsx`）
+
 - 画面表示のたび（`useFocusEffect`）に直近100セッションと今月の集計を読み込み
 - セッションをタップ → `loadSession(date)` してホームへ遷移（過去日を編集できる）
 - 各行: 日付・総重量・セット数・メモ有無アイコン・種目名
@@ -220,19 +235,20 @@ RootLayout (app/_layout.tsx)
 
 ## 8. コンポーネント一覧（`components/`）
 
-| 部品 | 役割 |
-|---|---|
-| AddSetFab | 右下のフローティング + ボタン（種目追加トリガ） |
-| CollapsingHeader | スクロール連動で折りたたむヘッダー（reanimated）。日付・総重量・前回比 |
-| WeekCalendarStrip | 週7日の日付選択ストリップ |
-| SetLogList | setLogs をグループ化して縦リスト表示。スクロール量を scrollY に流す |
-| ExerciseGroupCard | 1種目分のカード。種目名・前回実績・各セット行・セット追加・削除 |
-| SetRow | 1セット行。重量/レップ入力・完了チェック・推定1RM 表示・削除 |
-| ExercisePickerSheet | 種目選択モーダル。部位チップで絞り込み・検索・カスタム種目追加 |
-| RestTimerBar | インターバルの残り時間表示・±調整・終了。完了時に触覚フィードバック |
-| NoteModal | その日のメモを編集して保存 |
+| 部品                | 役割                                                                   |
+| ------------------- | ---------------------------------------------------------------------- |
+| AddSetFab           | 右下のフローティング + ボタン（種目追加トリガ）                        |
+| CollapsingHeader    | スクロール連動で折りたたむヘッダー（reanimated）。日付・総重量・前回比 |
+| WeekCalendarStrip   | 週7日の日付選択ストリップ                                              |
+| SetLogList          | setLogs をグループ化して縦リスト表示。スクロール量を scrollY に流す    |
+| ExerciseGroupCard   | 1種目分のカード。種目名・前回実績・各セット行・セット追加・削除        |
+| SetRow              | 1セット行。重量/レップ入力・完了チェック・推定1RM 表示・削除           |
+| ExercisePickerSheet | 種目選択モーダル。部位チップで絞り込み・検索・カスタム種目追加         |
+| RestTimerBar        | インターバルの残り時間表示・±調整・終了。完了時に触覚フィードバック    |
+| NoteModal           | その日のメモを編集して保存                                             |
 
 ### 代表的なデータの流れ（例: セットを1つ記録する）
+
 ```
 [+ FAB] → ExercisePickerSheet で種目選択
   → store.addSetForExercise(exerciseId)

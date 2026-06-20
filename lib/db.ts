@@ -1,13 +1,18 @@
+// データ層: SQLite への読み書きを一手に引き受けるリポジトリ。
+// 画面やストアはこのファイルが公開する関数だけを呼び、生の SQL には触れない。
 import * as SQLite from 'expo-sqlite';
 
 const DATABASE_NAME = 'beatlift.db';
+// スキーマの世代番号。スキーマを変えたらこの値を上げ、migrateDbIfNeeded に移行処理を足す
 const DATABASE_VERSION = 2;
 
+// DB の行をそのまま写した型。列名は snake_case（DB の都合）で、
+// アプリ側の camelCase 型(store の Exercise / SetLog)へはストアで変換する。
 export type ExerciseRow = {
   id: number;
   name: string;
   body_part: string | null;
-  is_default: number;
+  is_default: number; // 1=プリセット種目, 0=ユーザー追加
   sort_order: number;
 };
 
@@ -22,12 +27,16 @@ export type SetLogRow = {
   created_at: string;
 };
 
+// 接続は一度だけ開いて使い回す(シングルトン)。Promise を保持するので、
+// 初回の準備中に複数箇所から呼ばれても同じ接続を待つだけで済む。
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
+/** DB 接続を取得する。初回呼び出し時だけ接続を開いてマイグレーションを実行する */
 export function getDb(): Promise<SQLite.SQLiteDatabase> {
   if (!dbPromise) {
     dbPromise = (async () => {
       const db = await SQLite.openDatabaseAsync(DATABASE_NAME);
+      // WAL=書き込み性能向上 / foreign_keys=ON で外部キー(CASCADE削除など)を有効化
       await db.execAsync('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
       await migrateDbIfNeeded(db);
       return db;
@@ -63,9 +72,15 @@ const DEFAULT_EXERCISES: [name: string, bodyPart: string][] = [
   ['アブローラー', '腹'],
 ];
 
+/**
+ * 端末内 DB のスキーマを現行版まで段階的に引き上げる。
+ * PRAGMA user_version に「その端末の現在の世代」を記録し、
+ * 起動のたびに DATABASE_VERSION と比べて足りない分だけ移行する。
+ */
 async function migrateDbIfNeeded(db: SQLite.SQLiteDatabase) {
   const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
   let currentVersion = row?.user_version ?? 0;
+  // 既に最新(またはそれ以上)なら何もしない
   if (currentVersion >= DATABASE_VERSION) return;
 
   if (currentVersion === 0) {
@@ -102,8 +117,10 @@ async function migrateDbIfNeeded(db: SQLite.SQLiteDatabase) {
         CREATE INDEX IF NOT EXISTS idx_setlogs_session ON set_logs(session_id);
       `);
 
+      // デフォルト種目を投入。同じ INSERT を23回繰り返すので、
+      // プリペアドステートメント(コンパイル済みSQL)を使い回して高速化する
       const statement = await db.prepareAsync(
-        'INSERT INTO exercises (name, body_part, is_default, sort_order) VALUES ($name, $bodyPart, 1, $sortOrder)'
+        'INSERT INTO exercises (name, body_part, is_default, sort_order) VALUES ($name, $bodyPart, 1, $sortOrder)',
       );
       try {
         for (let i = 0; i < DEFAULT_EXERCISES.length; i++) {
@@ -128,12 +145,13 @@ async function migrateDbIfNeeded(db: SQLite.SQLiteDatabase) {
 }
 
 // ---- リポジトリ関数 ----
+// 各関数は getDb() で接続を得てから1つの SQL を実行する薄いラッパー。
+// 取得系は getAllAsync(複数行) / getFirstAsync(1行)、更新系は runAsync を使う。
 
+/** 全種目を表示順(sort_order→id)で返す */
 export async function listExercises(): Promise<ExerciseRow[]> {
   const db = await getDb();
-  return db.getAllAsync<ExerciseRow>(
-    'SELECT * FROM exercises ORDER BY sort_order, id'
-  );
+  return db.getAllAsync<ExerciseRow>('SELECT * FROM exercises ORDER BY sort_order, id');
 }
 
 /** 指定日のセッションを取得。なければ作成して返す */
@@ -141,24 +159,26 @@ export async function getOrCreateSession(date: string): Promise<number> {
   const db = await getDb();
   const existing = await db.getFirstAsync<{ id: number }>(
     'SELECT id FROM workout_sessions WHERE date = ?',
-    date
+    date,
   );
   if (existing) return existing.id;
   const result = await db.runAsync('INSERT INTO workout_sessions (date) VALUES (?)', date);
   return result.lastInsertRowId;
 }
 
+/** 指定セッションのセットを並び順(set_order→id)で返す */
 export async function listSetLogs(sessionId: number): Promise<SetLogRow[]> {
   const db = await getDb();
   return db.getAllAsync<SetLogRow>(
     'SELECT * FROM set_logs WHERE session_id = ? ORDER BY set_order, id',
-    sessionId
+    sessionId,
   );
 }
 
+/** セットを1件追加し、採番された id を返す。created_at は現在時刻を ISO 文字列で記録 */
 export async function insertSetLog(
   sessionId: number,
-  log: { exerciseId: number | null; weight: number; reps: number; setOrder: number }
+  log: { exerciseId: number | null; weight: number; reps: number; setOrder: number },
 ): Promise<number> {
   const db = await getDb();
   const result = await db.runAsync(
@@ -168,15 +188,21 @@ export async function insertSetLog(
     log.weight,
     log.reps,
     log.setOrder,
-    new Date().toISOString()
+    new Date().toISOString(),
   );
   return result.lastInsertRowId;
 }
 
+/**
+ * セット1行を部分更新する。patch に渡された項目だけを SET 句に組み立てるので、
+ * 「重量だけ」「完了フラグだけ」のような最小限の UPDATE になる。
+ * 値はすべて ? のプレースホルダ経由で渡す(SQL インジェクション対策)。
+ */
 export async function updateSetLogRow(
   id: number,
-  patch: { exerciseId?: number | null; weight?: number; reps?: number; completed?: number }
+  patch: { exerciseId?: number | null; weight?: number; reps?: number; completed?: number },
 ): Promise<void> {
+  // 渡された項目だけを "列 = ?" とその値に振り分ける
   const sets: string[] = [];
   const values: SQLite.SQLiteBindValue[] = [];
   if (patch.exerciseId !== undefined) {
@@ -195,11 +221,12 @@ export async function updateSetLogRow(
     sets.push('completed = ?');
     values.push(patch.completed);
   }
-  if (sets.length === 0) return;
+  if (sets.length === 0) return; // 更新対象が無ければ何もしない
   const db = await getDb();
   await db.runAsync(`UPDATE set_logs SET ${sets.join(', ')} WHERE id = ?`, ...values, id);
 }
 
+/** セットを1件削除する */
 export async function deleteSetLog(id: number): Promise<void> {
   const db = await getDb();
   await db.runAsync('DELETE FROM set_logs WHERE id = ?', id);
@@ -208,19 +235,19 @@ export async function deleteSetLog(id: number): Promise<void> {
 /** セッション内の特定種目のセットを一括削除。null は exercise_id IS NULL を対象にする */
 export async function deleteSetLogsByExercise(
   sessionId: number,
-  exerciseId: number | null
+  exerciseId: number | null,
 ): Promise<void> {
   const db = await getDb();
   if (exerciseId === null) {
     await db.runAsync(
       'DELETE FROM set_logs WHERE session_id = ? AND exercise_id IS NULL',
-      sessionId
+      sessionId,
     );
   } else {
     await db.runAsync(
       'DELETE FROM set_logs WHERE session_id = ? AND exercise_id = ?',
       sessionId,
-      exerciseId
+      exerciseId,
     );
   }
 }
@@ -229,21 +256,21 @@ export async function deleteSetLogsByExercise(
 export async function changeSetLogsExercise(
   sessionId: number,
   from: number | null,
-  to: number
+  to: number,
 ): Promise<void> {
   const db = await getDb();
   if (from === null) {
     await db.runAsync(
       'UPDATE set_logs SET exercise_id = ? WHERE session_id = ? AND exercise_id IS NULL',
       to,
-      sessionId
+      sessionId,
     );
   } else {
     await db.runAsync(
       'UPDATE set_logs SET exercise_id = ? WHERE session_id = ? AND exercise_id = ?',
       to,
       sessionId,
-      from
+      from,
     );
   }
 }
@@ -253,11 +280,12 @@ export async function getSessionNote(sessionId: number): Promise<string> {
   const db = await getDb();
   const row = await db.getFirstAsync<{ note: string | null }>(
     'SELECT note FROM workout_sessions WHERE id = ?',
-    sessionId
+    sessionId,
   );
   return row?.note ?? '';
 }
 
+/** セッションのメモを上書き保存する */
 export async function updateSessionNote(sessionId: number, note: string): Promise<void> {
   const db = await getDb();
   await db.runAsync('UPDATE workout_sessions SET note = ? WHERE id = ?', note, sessionId);
@@ -267,14 +295,14 @@ export async function updateSessionNote(sessionId: number, note: string): Promis
 export async function insertExercise(name: string, bodyPart: string | null): Promise<number> {
   const db = await getDb();
   const row = await db.getFirstAsync<{ maxOrder: number | null }>(
-    'SELECT MAX(sort_order) AS maxOrder FROM exercises'
+    'SELECT MAX(sort_order) AS maxOrder FROM exercises',
   );
   const sortOrder = (row?.maxOrder ?? -1) + 1;
   const result = await db.runAsync(
     'INSERT INTO exercises (name, body_part, is_default, sort_order) VALUES (?, ?, 0, ?)',
     name,
     bodyPart,
-    sortOrder
+    sortOrder,
   );
   return result.lastInsertRowId;
 }
@@ -285,7 +313,7 @@ export async function insertExercise(name: string, bodyPart: string | null): Pro
  */
 export async function getLastPerformance(
   exerciseId: number,
-  beforeDate: string
+  beforeDate: string,
 ): Promise<{ date: string; sets: { weight: number; reps: number }[] } | null> {
   const db = await getDb();
   const dateRow = await db.getFirstAsync<{ date: string }>(
@@ -296,7 +324,7 @@ export async function getLastPerformance(
       ORDER BY s.date DESC
       LIMIT 1`,
     exerciseId,
-    beforeDate
+    beforeDate,
   );
   if (!dateRow) return null;
   const sets = await db.getAllAsync<{ weight: number; reps: number }>(
@@ -306,7 +334,7 @@ export async function getLastPerformance(
       WHERE l.exercise_id = ? AND s.date = ? AND (l.weight > 0 OR l.reps > 0)
       ORDER BY l.set_order, l.id`,
     exerciseId,
-    dateRow.date
+    dateRow.date,
   );
   return { date: dateRow.date, sets };
 }
@@ -326,14 +354,14 @@ export async function getBestE1RM(exerciseId: number, beforeDate: string): Promi
        JOIN workout_sessions s ON s.id = l.session_id
       WHERE l.exercise_id = ? AND s.date < ?`,
     exerciseId,
-    beforeDate
+    beforeDate,
   );
   return Math.round(row?.best ?? 0);
 }
 
 /** beforeDate より前で、セットを1件以上持つ直近セッションの総ボリューム */
 export async function getPreviousSessionVolume(
-  beforeDate: string
+  beforeDate: string,
 ): Promise<{ date: string; volume: number } | null> {
   const db = await getDb();
   const row = await db.getFirstAsync<{ date: string; volume: number }>(
@@ -344,16 +372,19 @@ export async function getPreviousSessionVolume(
       GROUP BY s.id
       ORDER BY s.date DESC
       LIMIT 1`,
-    beforeDate
+    beforeDate,
   );
   if (!row) return null;
   return { date: row.date, volume: row.volume ?? 0 };
 }
 
-/** セットを1件以上持つセッションを date 降順で返す(履歴一覧用) */
-export async function listRecentSessions(
-  limit: number
-): Promise<
+/**
+ * 履歴一覧用に、各セッションを1行へ集計して date 降順で返す。
+ * - JOIN set_logs: セットを1件も持たないセッションは結果から除外される(空の日を出さない)
+ * - LEFT JOIN exercises: 種目未選択(exercise_id IS NULL)のセットも残すため LEFT にする
+ * - volume=総重量, setCount=セット数, exerciseNames=その日の種目名をカンマ連結
+ */
+export async function listRecentSessions(limit: number): Promise<
   {
     id: number;
     date: string;
@@ -384,21 +415,22 @@ export async function listRecentSessions(
       GROUP BY s.id
       ORDER BY s.date DESC
       LIMIT ?`,
-    limit
+    limit,
   );
 }
 
 /** 指定月(monthPrefix 例: '2026-06')の、セットを持つセッション数と総ボリューム */
 export async function getMonthlyStats(
-  monthPrefix: string
+  monthPrefix: string,
 ): Promise<{ sessions: number; volume: number }> {
   const db = await getDb();
   const row = await db.getFirstAsync<{ sessions: number; volume: number | null }>(
+    // date は 'YYYY-MM-DD' なので 'YYYY-MM' で前方一致(LIKE 'YYYY-MM%')すれば当月分に絞れる
     `SELECT COUNT(DISTINCT s.id) AS sessions, SUM(l.weight * l.reps) AS volume
        FROM workout_sessions s
        JOIN set_logs l ON l.session_id = s.id
       WHERE s.date LIKE ? || '%'`,
-    monthPrefix
+    monthPrefix,
   );
   return { sessions: row?.sessions ?? 0, volume: row?.volume ?? 0 };
 }

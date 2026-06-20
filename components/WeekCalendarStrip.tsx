@@ -37,7 +37,11 @@ export function WeekCalendarStrip({ selectedDate, onSelect }: Props) {
             >
               <Text
                 className={`text-base ${
-                  selected ? 'font-bold text-white' : today ? 'font-bold text-primary' : 'text-gray-700'
+                  selected
+                    ? 'font-bold text-white'
+                    : today
+                      ? 'font-bold text-primary'
+                      : 'text-gray-700'
                 }`}
               >
                 {dayOfMonth(date)}
