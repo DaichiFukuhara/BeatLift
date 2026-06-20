@@ -23,7 +23,7 @@ export function SetRow({ log, index }: Props) {
   const removeSetLog = useWorkoutStore((s) => s.removeSetLog);
   const toggleSetCompleted = useWorkoutStore((s) => s.toggleSetCompleted);
   const bestE1RM = useWorkoutStore((s) =>
-    log.exerciseId != null ? s.historyByExercise[log.exerciseId]?.bestE1RM ?? 0 : 0
+    log.exerciseId != null ? (s.historyByExercise[log.exerciseId]?.bestE1RM ?? 0) : 0,
   );
 
   // 入力途中の "60." などを保持するため、表示用の文字列は行内ローカルで持つ
@@ -93,12 +93,8 @@ export function SetRow({ log, index }: Props) {
       <Text className="ml-1 text-sm text-gray-500">回</Text>
       <View className="flex-1" />
       {oneRM > 0 && (
-        <View
-          className={`mr-2 rounded-full px-2 py-1 ${isPR ? 'bg-amber-100' : 'bg-indigo-50'}`}
-        >
-          <Text
-            className={`text-xs font-bold ${isPR ? 'text-amber-600' : 'text-primary-dark'}`}
-          >
+        <View className={`mr-2 rounded-full px-2 py-1 ${isPR ? 'bg-amber-100' : 'bg-indigo-50'}`}>
+          <Text className={`text-xs font-bold ${isPR ? 'text-amber-600' : 'text-primary-dark'}`}>
             {isPR ? `🏆 ${oneRM}` : `1RM ${oneRM}`}
           </Text>
         </View>

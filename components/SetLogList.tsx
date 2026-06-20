@@ -33,9 +33,7 @@ export function SetLogList({ scrollY, onPickExercise }: Props) {
     <Animated.FlatList
       data={groups}
       keyExtractor={(item: ExerciseGroup) => item.key}
-      renderItem={({ item }) => (
-        <ExerciseGroupCard group={item} onPickExercise={onPickExercise} />
-      )}
+      renderItem={({ item }) => <ExerciseGroupCard group={item} onPickExercise={onPickExercise} />}
       onScroll={scrollHandler}
       scrollEventThrottle={16}
       contentContainerStyle={{

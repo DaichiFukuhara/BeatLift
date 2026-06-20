@@ -1,0 +1,42 @@
+# コーディング規約
+
+BeatLift の現状の規約を簡潔にまとめたもの。詳細は [DESIGN.md](./DESIGN.md) を参照。
+
+## 全般
+
+- 言語は **TypeScript**。コメントは **日本語**、「なぜ」を書く（自明な「何を」は書かない）。
+- import は `@/` エイリアスで絶対参照（例: `@/lib/db`、`@/store/workoutStore`）。
+- スタイルは **NativeWind の `className`**（Tailwind 記法）。インラインの `style` は最小限。
+
+## レイヤー分離
+
+- **画面/部品 → ストア → データ層** の一方向。画面は原則 DB を直接触らず、ストア経由で操作する。
+- 例外: 履歴画面など **読み取り専用の集計** は `lib/db.ts` を直接呼んでよい（書き込みは不可）。
+- `lib/` の関数は **純関数 or 単機能のリポジトリ関数**に保つ（副作用を持ち込まない）。
+
+## データ層（`lib/db.ts`）
+
+- 1関数 = 1 SQL の薄いリポジトリ関数。接続は `getDb()` で取得。
+- 取得は `getAllAsync`(複数) / `getFirstAsync`(1件)、更新は `runAsync`。
+- 値は必ず **`?` プレースホルダ** で渡す（文字列連結禁止＝インジェクション対策）。
+- DB 列は **snake_case**、アプリ側の型は **camelCase**。変換はストアで行う。
+- スキーマ変更時は `DATABASE_VERSION` を上げ、`migrateDbIfNeeded` に移行処理を追加。
+
+## 状態管理（`store/workoutStore.ts`）
+
+- **単一の Zustand ストア**。state とそれを操作する action をまとめる。
+- 入力系は **楽観的更新**：先に state を更新 → その後 DB に書き込む。
+- 派生値は **セレクタ純関数**（`selectTotalVolume` 等）で算出し、state に持たない。
+
+## 命名
+
+- コンポーネント: PascalCase（`SetRow`）。関数/変数: camelCase。
+- 日付キーは一貫して **`'YYYY-MM-DD'` 文字列**（操作は `lib/date.ts` に集約）。
+
+## ルーティング
+
+- **expo-router のファイルベース**。`app/` 配下の構成がそのまま画面構成になる。
+
+## 実装前の確認
+
+- Expo は破壊的変更が多い。実装前に **SDK 54 のバージョン別ドキュメント**を確認する（[AGENTS.md](../AGENTS.md)）。

@@ -54,7 +54,11 @@ export function RestTimerBar() {
         >
           <Text className="text-xs font-bold text-white">+30秒</Text>
         </Pressable>
-        <Pressable onPress={stopRestTimer} hitSlop={4} className="rounded-full bg-white/20 px-2.5 py-1">
+        <Pressable
+          onPress={stopRestTimer}
+          hitSlop={4}
+          className="rounded-full bg-white/20 px-2.5 py-1"
+        >
           <Text className="text-xs font-bold text-white">スキップ</Text>
         </Pressable>
       </View>

@@ -18,7 +18,7 @@ export function ExerciseGroupCard({ group, onPickExercise }: Props) {
   const removeExerciseGroup = useWorkoutStore((s) => s.removeExerciseGroup);
   const ensureExerciseHistory = useWorkoutStore((s) => s.ensureExerciseHistory);
   const history = useWorkoutStore((s) =>
-    group.exerciseId != null ? s.historyByExercise[group.exerciseId] : undefined
+    group.exerciseId != null ? s.historyByExercise[group.exerciseId] : undefined,
   );
 
   const exercise = exercises.find((e) => e.id === group.exerciseId);
@@ -96,9 +96,7 @@ export function ExerciseGroupCard({ group, onPickExercise }: Props) {
               前回 {formatShortDate(last!.date)}: {lastSetsText}
             </Text>
           )}
-          {bestE1RM > 0 && (
-            <Text className="text-xs text-gray-400">ベスト1RM {bestE1RM}kg</Text>
-          )}
+          {bestE1RM > 0 && <Text className="text-xs text-gray-400">ベスト1RM {bestE1RM}kg</Text>}
         </View>
       )}
 
