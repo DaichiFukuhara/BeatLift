@@ -28,7 +28,7 @@ export default function HistoryScreen() {
         setMonthlyStats(stats);
       };
       load();
-    }, []),
+    }, [])
   );
 
   const onPressSession = (date: string) => {
@@ -55,7 +55,9 @@ export default function HistoryScreen() {
             className="mb-2 rounded-2xl bg-white px-4 py-3 active:bg-gray-50"
           >
             <View className="flex-row items-center justify-between">
-              <Text className="text-base font-bold text-gray-900">{formatMonthDay(item.date)}</Text>
+              <Text className="text-base font-bold text-gray-900">
+                {formatMonthDay(item.date)}
+              </Text>
               <Text className="font-extrabold text-primary-dark">
                 {(Math.round(item.volume * 10) / 10).toLocaleString('ja-JP')}kg
               </Text>
@@ -81,7 +83,9 @@ export default function HistoryScreen() {
         ListEmptyComponent={
           <View className="flex-1 items-center justify-center pb-24">
             <Ionicons name="calendar-outline" size={48} color="#d1d5db" />
-            <Text className="mt-3 text-base font-medium text-gray-400">まだ記録がありません</Text>
+            <Text className="mt-3 text-base font-medium text-gray-400">
+              まだ記録がありません
+            </Text>
             <Text className="mt-1 text-sm text-gray-400">
               ホームでセットを記録すると、ここに表示されます
             </Text>
