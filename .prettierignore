@@ -16,3 +16,6 @@ package-lock.json
 
 # editor (Obsidian)
 docs/.obsidian/
+
+# CI
+.github/
