@@ -1,0 +1,21 @@
+# dependencies
+node_modules/
+
+# Expo / build outputs
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# generated native folders
+/ios
+/android
+
+# lockfile
+package-lock.json
+
+# editor (Obsidian)
+docs/.obsidian/
+
+# CI
+.github/
