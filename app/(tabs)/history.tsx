@@ -13,6 +13,7 @@ type SessionRow = Awaited<ReturnType<typeof repo.listRecentSessions>>[number];
 type ExerciseGroup = { name: string; sets: { weight: number; reps: number; index: number }[] };
 type Tab = 'calendar' | 'graph';
 
+// DB の date 列と照合するために YYYY-MM 形式に変換
 function monthPrefixOf(year: number, month: number): string {
   return `${year}-${String(month).padStart(2, '0')}`;
 }
@@ -21,15 +22,22 @@ export default function HistoryScreen() {
   const todayStr = todayKey();
   const [initYear, initMonth] = todayStr.split('-').map(Number);
 
+  // 選択中のタブ（カレンダー or グラフ）
   const [activeTab, setActiveTab] = useState<Tab>('calendar');
+  // 直近1年分のセッション一覧（カレンダーのドット描画・スワイプナビに使用）
   const [sessions, setSessions] = useState<SessionRow[]>([]);
+  // 表示月のトレーニング回数・総ボリューム（ヘッダー表示用）
   const [monthlyStats, setMonthlyStats] = useState({ sessions: 0, volume: 0 });
+  // カレンダーに表示する年・月
   const [viewYear, setViewYear] = useState(initYear);
   const [viewMonth, setViewMonth] = useState(initMonth);
+  // カレンダーで選択中の日付（YYYY-MM-DD）
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
+  // 選択日のセッションと、セッション内の種目グループ
   const [selectedSession, setSelectedSession] = useState<SessionRow | null>(null);
   const [groups, setGroups] = useState<ExerciseGroup[]>([]);
 
+  // 画面フォーカス時・表示月変更時にデータを再取得（タブ戻り時にも反映させるため useFocusEffect）
   useFocusEffect(
     useCallback(() => {
       const prefix = monthPrefixOf(viewYear, viewMonth);
@@ -37,11 +45,12 @@ export default function HistoryScreen() {
         ([recent, stats]) => {
           setSessions(recent);
           setMonthlyStats(stats);
-        }
+        },
       );
-    }, [viewYear, viewMonth])
+    }, [viewYear, viewMonth]),
   );
 
+  // 選択日が変わったら対応セッションを探し、DB から種目グループを構築
   useEffect(() => {
     const session = sessions.find((s) => s.date === selectedDate) ?? null;
     setSelectedSession(session);
@@ -69,15 +78,13 @@ export default function HistoryScreen() {
   const workoutDates = useMemo(() => new Set(sessions.map((s) => s.date)), [sessions]);
 
   // 日付昇順の配列（スワイプナビ用）
-  const sortedWorkoutDates = useMemo(
-    () => Array.from(workoutDates).sort(),
-    [workoutDates]
-  );
+  const sortedWorkoutDates = useMemo(() => Array.from(workoutDates).sort(), [workoutDates]);
 
   // PanResponder 内でレンダーごとの最新値を参照するための ref
   const navRef = useRef({ sortedWorkoutDates, selectedDate });
   navRef.current = { sortedWorkoutDates, selectedDate };
 
+  // 指定日付に移動し、カレンダーの表示月も合わせて同期
   function navigateTo(date: string) {
     const [y, m] = date.split('-').map(Number);
     setViewYear(y);
@@ -99,7 +106,7 @@ export default function HistoryScreen() {
           navigateTo(dates[idx - 1]);
         }
       },
-    })
+    }),
   ).current;
 
   const currentIdx = sortedWorkoutDates.indexOf(selectedDate);
@@ -109,6 +116,7 @@ export default function HistoryScreen() {
       ? sortedWorkoutDates[currentIdx + 1]
       : null;
 
+  // 月移動時は選択日を今日にリセット（前月の日付が新しい月に存在しないため）
   function handlePrevMonth() {
     setSelectedDate(todayStr);
     if (viewMonth === 1) {
@@ -179,7 +187,11 @@ export default function HistoryScreen() {
             {(prevDate || nextDate) && (
               <View className="flex-row items-center justify-between px-4 py-2">
                 {prevDate ? (
-                  <Pressable onPress={() => navigateTo(prevDate)} className="flex-row items-center gap-1" hitSlop={8}>
+                  <Pressable
+                    onPress={() => navigateTo(prevDate)}
+                    className="flex-row items-center gap-1"
+                    hitSlop={8}
+                  >
                     <Ionicons name="chevron-back" size={14} color="#9ca3af" />
                     <Text className="text-xs text-gray-400">{formatMonthDay(prevDate)}</Text>
                   </Pressable>
@@ -187,7 +199,11 @@ export default function HistoryScreen() {
                   <View />
                 )}
                 {nextDate ? (
-                  <Pressable onPress={() => navigateTo(nextDate)} className="flex-row items-center gap-1" hitSlop={8}>
+                  <Pressable
+                    onPress={() => navigateTo(nextDate)}
+                    className="flex-row items-center gap-1"
+                    hitSlop={8}
+                  >
                     <Text className="text-xs text-gray-400">{formatMonthDay(nextDate)}</Text>
                     <Ionicons name="chevron-forward" size={14} color="#9ca3af" />
                   </Pressable>

@@ -24,15 +24,18 @@ export function MonthCalendar({
   onPrevMonth,
   onNextMonth,
 }: Props) {
+  // 月の1日の曜日（0=日〜6=土）と月の総日数を取得
   const firstDay = new Date(year, month - 1, 1).getDay();
   const daysInMonth = new Date(year, month, 0).getDate();
 
+  // 日曜始まりのグリッドに合わせて先頭に null を詰め、末尾を7の倍数に揃える
   const cells: (number | null)[] = [
     ...Array(firstDay).fill(null),
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ];
   while (cells.length % 7 !== 0) cells.push(null);
 
+  // 7日ごとに週の配列へ分割
   const weeks: (number | null)[][] = [];
   for (let i = 0; i < cells.length; i += 7) {
     weeks.push(cells.slice(i, i + 7));
@@ -92,12 +95,12 @@ export function MonthCalendar({
                       isSelected
                         ? 'font-bold text-white'
                         : today
-                        ? 'font-bold text-primary'
-                        : di === 0
-                        ? 'text-red-400'
-                        : di === 6
-                        ? 'text-blue-400'
-                        : 'text-gray-700'
+                          ? 'font-bold text-primary'
+                          : di === 0
+                            ? 'text-red-400'
+                            : di === 6
+                              ? 'text-blue-400'
+                              : 'text-gray-700'
                     }`}
                   >
                     {day}

@@ -6,9 +6,12 @@ import * as repo from '@/lib/db';
 
 type Exercise = { id: number; name: string };
 
+// チャート配色
 const PRIMARY = '#6366f1';
 const PRIMARY_DARK = '#4f46e5';
+// 軸ラベルのフォントスタイル
 const AXIS_TEXT = { fontSize: 10, color: '#9ca3af' };
+// 棒グラフの棒幅・間隔、折れ線グラフのデータ点間隔
 const BAR_W = 24;
 const BAR_SPACING = 12;
 const LINE_SPACING = 52;
@@ -25,7 +28,7 @@ export function GraphView() {
         setMonthlyVolumes(volumes);
         setExercises(exs);
         if (exs.length > 0) setSelectedExerciseId(exs[0].id);
-      }
+      },
     );
   }, []);
 
@@ -34,6 +37,7 @@ export function GraphView() {
     repo.get1RMHistory(selectedExerciseId).then(setRmHistory);
   }, [selectedExerciseId]);
 
+  // 棒グラフ用データに変換。件数が多い場合はラベルを間引いて重なりを防ぐ
   const volumeBarData = useMemo(
     () =>
       monthlyVolumes.map((d, i) => {
@@ -46,9 +50,10 @@ export function GraphView() {
           frontColor: PRIMARY,
         };
       }),
-    [monthlyVolumes]
+    [monthlyVolumes],
   );
 
+  // 折れ線グラフ用データに変換。同様にラベルを間引く
   const rmLineData = useMemo(
     () =>
       rmHistory.map((d, i) => {
@@ -60,14 +65,18 @@ export function GraphView() {
           label: showLabel ? `${Number(m)}/${Number(day)}` : '',
         };
       }),
-    [rmHistory]
+    [rmHistory],
   );
 
+  // データ件数に応じてチャート幅を計算（横スクロールで全件表示するため）
   const barChartWidth = Math.max(300, volumeBarData.length * (BAR_W + BAR_SPACING) + 60);
   const lineChartWidth = Math.max(300, rmLineData.length * LINE_SPACING + 60);
 
   return (
-    <ScrollView className="flex-1" contentContainerStyle={{ paddingVertical: 16, paddingBottom: 32 }}>
+    <ScrollView
+      className="flex-1"
+      contentContainerStyle={{ paddingVertical: 16, paddingBottom: 32 }}
+    >
       {/* 月次ボリューム */}
       <Text className="mb-3 px-4 text-sm font-bold text-gray-700">月次ボリューム (kg)</Text>
       {volumeBarData.length > 0 ? (

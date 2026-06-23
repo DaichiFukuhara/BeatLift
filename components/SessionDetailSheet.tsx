@@ -34,6 +34,7 @@ export function SessionDetailSheet({ session, onClose }: Props) {
       return;
     }
     repo.getSessionSets(session.id).then((rows) => {
+      // フラットなセット行を種目名でグルーピング（登場順を保持するため Map を使用）
       const map = new Map<string, ExerciseGroup>();
       const ordered: ExerciseGroup[] = [];
       for (const row of rows) {
@@ -51,18 +52,10 @@ export function SessionDetailSheet({ session, onClose }: Props) {
   }, [session]);
 
   return (
-    <Modal
-      visible={session !== null}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
+    <Modal visible={session !== null} transparent animationType="slide" onRequestClose={onClose}>
       <View className="flex-1 justify-end">
         <Pressable className="absolute inset-0 bg-black/40" onPress={onClose} />
-        <View
-          className="rounded-t-3xl bg-white"
-          style={{ paddingBottom: insets.bottom + 8 }}
-        >
+        <View className="rounded-t-3xl bg-white" style={{ paddingBottom: insets.bottom + 8 }}>
           {/* ハンドルバー */}
           <View className="items-center pb-2 pt-3">
             <View className="h-1 w-10 rounded-full bg-gray-300" />
