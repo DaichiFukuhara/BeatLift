@@ -1,3 +1,5 @@
+// 記録画面で1種目分をまとめるカード。種目名・前回実績・各セット行(SetRow)・
+// セット追加/削除/種目変更を束ねるコンテナコンポーネント。
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useEffect } from 'react';

@@ -1,3 +1,5 @@
+// 記録画面の右下に固定表示する FAB(フローティングボタン)。
+// タップで種目追加の選択シートを開くトリガ。状態を持たず onPress を受け取るだけのプレゼンテーショナルコンポーネント。
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable } from 'react-native';
 

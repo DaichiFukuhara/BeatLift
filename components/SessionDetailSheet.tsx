@@ -1,3 +1,5 @@
+// 過去セッションの詳細を表示するモーダルシート。日付・総重量・種目ごとのセット内容・メモを
+// DB から読み取って表示する(読み取り専用ビュー。履歴画面から開く)。
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';

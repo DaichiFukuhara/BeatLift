@@ -1,3 +1,5 @@
+// 履歴画面で実績をグラフ表示するコンポーネント。DB から集計を読み込み、
+// 月別ボリュームや種目別の推移を棒/折れ線グラフで描画する(react-native-gifted-charts)。
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { BarChart, LineChart } from 'react-native-gifted-charts';

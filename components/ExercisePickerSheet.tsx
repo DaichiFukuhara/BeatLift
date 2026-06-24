@@ -1,3 +1,5 @@
+// 種目を選ぶモーダルシート。部位チップでの絞り込み・検索・カスタム種目追加に対応し、
+// 「新規追加」と「既存グループの種目変更」の両方で使い回す。
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
 import {
