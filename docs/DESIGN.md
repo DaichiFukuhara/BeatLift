@@ -41,7 +41,7 @@
 | -------------- | ---------------------------------------------------- | ------------------------ |
 | フレームワーク | Expo SDK 54 / React Native 0.81                      | New Architecture 有効    |
 | 言語           | TypeScript 5.9                                       |                          |
-| ルーティング   | expo-router 6（ファイルベース）                      | typedRoutes 有効         |
+| ルーティング   | expo-router 6（ファイルベーVス）                     | typedRoutes 有効         |
 | 状態管理       | Zustand 5                                            | 単一ストア               |
 | 永続化         | expo-sqlite 16                                       | WAL モード・外部キー有効 |
 | スタイリング   | NativeWind 4（Tailwind 記法）                        | `className` で記述       |
