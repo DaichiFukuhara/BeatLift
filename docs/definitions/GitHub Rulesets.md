@@ -3,7 +3,8 @@ def-type: consolidated
 ---
 
 # GitHub Rulesets
-*Ruleset, Rulesets*
+
+_Ruleset, Rulesets_
 
 ブランチやタグに対する保護ルールをまとめて定義・管理する GitHub の仕組み。
 従来の Branch protection rules の後継で、適用対象・適用レベル・例外・個別ルールを1つの「ルールセット」として構成できる。本リポジトリでは `main` を保護する目的で設定している。
@@ -11,7 +12,8 @@ def-type: consolidated
 ---
 
 # Enforcement status
-*適用ステータス, 施行ステータス*
+
+_適用ステータス, 施行ステータス_
 
 そのルールセットを実際に効かせるかどうかの状態。
 
@@ -24,7 +26,8 @@ def-type: consolidated
 ---
 
 # Bypass list
-*バイパスリスト, 例外許可リスト*
+
+_バイパスリスト, 例外許可リスト_
 
 ルールセットの適用を回避（バイパス）できる対象の一覧。ここに含まれるロール／チーム／アプリは、Branch Rules に反する操作を許可される。
 
@@ -33,7 +36,8 @@ def-type: consolidated
 ---
 
 # Target Branches
-*対象ブランチ, ターゲットブランチ*
+
+_対象ブランチ, ターゲットブランチ_
 
 ルールセットを適用するブランチの指定。パターンや「デフォルトブランチを含む」といった条件で対象を絞れる。
 
@@ -42,21 +46,24 @@ def-type: consolidated
 ---
 
 # Restrict deletions
-*削除の制限*
+
+_削除の制限_
 
 対象ブランチの**削除を禁止**するルール。誤ってまたは故意に `main` を消すことを防ぐ。バイパス権限のある対象（Repository Admin）を除き、削除操作はブロックされる。
 
 ---
 
 # Require signed commits
-*署名付きコミットの必須化*
+
+_署名付きコミットの必須化_
 
 対象ブランチに入るコミットに、検証済みの**署名（GPG / SSH / S/MIME）**を必須とするルール。署名のないコミットを含むプッシュやマージはブロックされ、作者のなりすましを防ぐ。
 
 ---
 
 # Require a pull request before merging
-*プルリクエスト必須, PR必須(approval 1)*
+
+_プルリクエスト必須, PR必須(approval 1)_
 
 対象ブランチへの変更を、**必ずプルリクエスト経由**にするルール。`main` への直接プッシュは禁止され、変更は PR でレビューを通す必要がある。
 
@@ -65,6 +72,7 @@ def-type: consolidated
 ---
 
 # Block force pushes
-*強制プッシュの禁止, force push ブロック*
+
+_強制プッシュの禁止, force push ブロック_
 
 対象ブランチへの**強制プッシュ（`git push --force`）を禁止**するルール。履歴の上書き・改変を防ぎ、`main` のコミット履歴を保護する。バイパス権限のある対象を除いてブロックされる。
