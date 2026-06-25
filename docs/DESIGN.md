@@ -37,16 +37,16 @@
 
 ## 2. 技術スタック
 
-| 領域           | 採用技術                                             | 備考                     |
-| -------------- | ---------------------------------------------------- | ------------------------ |
-| フレームワーク | Expo SDK 54 / React Native 0.81                      | New Architecture 有効    |
-| 言語           | TypeScript 5.9                                       |                          |
-| ルーティング   | expo-router 6（ファイルベーVス）                     | typedRoutes 有効         |
-| 状態管理       | Zustand 5                                            | 単一ストア               |
-| 永続化         | expo-sqlite 16                                       | WAL モード・外部キー有効 |
-| スタイリング   | NativeWind 4（Tailwind 記法）                        | `className` で記述       |
-| アニメーション | react-native-reanimated 4                            | ヘッダー折りたたみ等     |
-| その他         | expo-haptics（触覚）, @expo/vector-icons（アイコン） |                          |
+| 領域      | 採用技術                                       | 備考                  |
+| ------- | ------------------------------------------ | ------------------- |
+| フレームワーク | Expo SDK 54 / React Native 0.81            | New Architecture 有効 |
+| 言語      | TypeScript 5.9                             |                     |
+| ルーティング  | expo-router 6（ファイルベース）                     | typedRoutes 有効      |
+| 状態管理    | Zustand 5                                  | 単一ストア               |
+| 永続化     | expo-sqlite 16                             | WAL モード・外部キー有効      |
+| スタイリング  | NativeWind 4（Tailwind 記法）                  | `className` で記述     |
+| アニメーション | react-native-reanimated 4                  | ヘッダー折りたたみ等          |
+| その他     | expo-haptics（触覚）, @expo/vector-icons（アイコン） |                     |
 
 ---
 

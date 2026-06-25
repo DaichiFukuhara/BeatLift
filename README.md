@@ -1,50 +1,110 @@
-# Welcome to your Expo app 👋
+<!-- NOTE: 就活向けの一時的なまとめ。内容は適宜整理予定。 -->
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+# BeatLift 🏋️
 
-## Get started
+**ジムでの筋トレ記録を「その場で・最速で」取るための、オフライン対応モバイルアプリ。**
 
-1. Install dependencies
+種目・重量・レップ数をサッと打ち込み、インターバルを計り、前回との比較を見ながらトレーニングできます。通信・ログイン不要で、データはすべて端末内に保存されます。
+
+> 個人開発（設計・実装・CI 構築まで一人で担当） / React Native (Expo) + TypeScript
+
+## スクリーンショット
+
+<!-- TODO: 実機のスクリーンショット or 録画GIF を追加（記録画面 / 履歴画面 / グラフ） -->
+
+| 記録画面 | 履歴・カレンダー | グラフ |
+| :------: | :--------------: | :----: |
+|   _準備中_   |      _準備中_      | _準備中_ |
+
+---
+
+## 何を解決するアプリか
+
+- ジムでは「速く・確実に記録できること」が最優先。多機能で重いアプリや、通信が必要なアプリはトレーニングの邪魔になる。
+- そこで **オフラインで完結し、最小タップで記録できる** ことに振り切って設計しました。
+- 想定ユーザーは「課金してまで多機能アプリは使わないが、筋力・筋肉量はしっかり伸ばしたい」カジュアル層。
+
+## 主な機能
+
+- **セット記録** … 種目を選んで重量×レップを追加・編集。同種目は自動でカードにグループ化し、前セットの値を引き継ぐ
+- **インターバルタイマー** … セット完了チェックで自動スタート。残り時間の調整・触覚フィードバック付き
+- **前回比 / 推定1RM** … 同種目の前回実績と、Epley 式の推定1RM（自己ベスト）を表示
+- **履歴** … 月カレンダーで実施日を可視化、月別ボリュームや種目別推移をグラフ表示
+- **その他** … セッションごとのメモ、部位別プリセット23種目＋カスタム種目追加
+
+## 技術スタック
+
+| 領域 | 採用 | 選定理由 |
+| --- | --- | --- |
+| フレームワーク | Expo (SDK 54) / React Native 0.81 | iOS/Android を一本化。EAS でのビルド・配布まで見据えて選択 |
+| 言語 | TypeScript | 型でデータ層〜画面の取り違えを防ぐ |
+| ルーティング | expo-router | ファイルベースで画面構成が明快 |
+| 状態管理 | Zustand | Redux より軽量。単一ストアで十分な規模と判断 |
+| 永続化 | expo-sqlite | オフライン前提。集計（総量・1RM）を SQL に寄せられる |
+| スタイリング | NativeWind (Tailwind) | クラス記法でスタイルの一貫性を担保 |
+| アニメーション | react-native-reanimated | ヘッダー折りたたみなどを 60fps で |
+
+## アーキテクチャ
+
+責務を3層に分離し、**画面はストア経由でのみデータを操作**する一方向の流れにしています。
+
+```
+画面 / 部品 (app, components)   ← 表示と操作
+        ↓
+状態管理 (store, Zustand)        ← 司令塔。state 更新と DB 書き込み
+        ↓
+データ層 (lib/db.ts, SQLite)     ← 永続化・集計（リポジトリ関数）
+```
+
+## 設計・実装の工夫
+
+- **楽観的更新** … 入力のたびに先に state を更新して即時反映し、その後 DB に書き込むことで、記録中の体感速度を優先
+- **DB マイグレーション設計** … `PRAGMA user_version` でスキーマ世代を管理し、起動時に必要分だけ段階移行
+- **レースコンディション対策** … 日付を連打で切り替えても、最後に選んだ日以外の非同期結果は破棄して表示崩れを防止
+- **集計を SQL に集約** … 総ボリューム・推定1RM・月次統計を SQL の集計関数で算出し、アプリ側の計算負荷を低減
+
+## 開発体制
+
+個人開発ですが、チーム開発を想定した運用を取り入れています。
+
+- **CI（GitHub Actions）** … `typecheck` / `lint` / `format` を PR ごとに自動チェック
+- **ドキュメント整備** … [設計書](docs/DESIGN.md) / [コーディング規約](docs/CONVENTIONS.md)
+- **リポジトリ運用** … GitHub Rulesets によるブランチ保護（PR 必須・署名コミット）、Issue テンプレート
+
+## 今後の展望
+
+- 種目の編集・並べ替え UI
+- データのバックアップ / 端末間同期
+- テストコードの整備
+
+---
+
+## セットアップ
+
+1. 依存をインストール
 
    ```bash
    npm install
    ```
 
-2. Start the app
+2. 開発サーバーを起動
 
    ```bash
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+   表示された QR コードを [Expo Go](https://expo.dev/go) で読み取るか、iOS シミュレータ / Android エミュレータで起動できます。
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+### 開発用コマンド
 
 ```bash
-npm run reset-project
+npm run typecheck     # 型チェック (tsc --noEmit)
+npm run lint          # ESLint
+npm run format        # Prettier で整形
+npm run format:check  # 整形崩れの検出（CI と同じ）
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## ドキュメント
 
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- [設計書 (docs/DESIGN.md)](docs/DESIGN.md)
+- [コーディング規約 (docs/CONVENTIONS.md)](docs/CONVENTIONS.md)
