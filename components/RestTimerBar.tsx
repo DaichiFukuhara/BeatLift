@@ -1,3 +1,5 @@
+// インターバル稼働中だけ画面下部に表示するタイマーバー。残り時間表示・±調整・終了を行い、
+// 完了時に触覚フィードバックを返す。表示有無はストアの restTimer に連動する。
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useEffect, useState } from 'react';

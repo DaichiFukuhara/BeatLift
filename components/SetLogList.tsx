@@ -1,3 +1,5 @@
+// 記録画面の本体リスト。setLogs を種目ごとにグループ化して ExerciseGroupCard を縦に並べ、
+// スクロール量を scrollY(共有値)へ流してヘッダーの折りたたみと連動させる。
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo } from 'react';
 import { ActivityIndicator, Dimensions, Text, View } from 'react-native';

@@ -1,3 +1,5 @@
+// 月単位のカレンダー表示。トレーニング実施日(workoutDates)をマークし、
+// 日付タップ・前後月の送りを親へ通知するプレゼンテーショナルコンポーネント。
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
 

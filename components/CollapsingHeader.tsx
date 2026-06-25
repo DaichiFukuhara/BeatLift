@@ -1,3 +1,5 @@
+// 記録画面の上部ヘッダー。週カレンダー＋日付＋総重量＋前回比をまとめて表示し、
+// 本文のスクロール量(scrollY)に連動して折りたたむアニメーション付きコンテナ。
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
 import Animated, {

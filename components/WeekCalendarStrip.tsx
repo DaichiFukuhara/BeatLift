@@ -1,3 +1,5 @@
+// 週7日分の日付選択ストリップ。選択日・今日を強調表示し、
+// タップで日付選択を親へ通知するプレゼンテーショナルコンポーネント。
 import { Pressable, Text, View } from 'react-native';
 
 import { dayOfMonth, getWeekDates, isToday, weekdayLabel } from '@/lib/date';

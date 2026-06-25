@@ -1,3 +1,4 @@
+// その日のセッションのメモを編集・保存するモーダル。
 import { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,

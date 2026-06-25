@@ -1,3 +1,5 @@
+// 1セット分の行。重量/レップの入力・完了チェック・推定1RM 表示・削除を担う、
+// 記録の最小単位の入力コンポーネント。
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
