@@ -1,8 +1,6 @@
-# チーム開発のための設計
+## 設定内容
 
-## Github設定
-
-ClaudeによるDeleteやUpdateを防ぐためにGitHubの Rulesets をした。
+LLMによるDeleteやUpdateを防ぐためにGitHubの Rulesets をした。
 設定の内容は以下の通り
 **Enforcement status** Active
 **Bypass list** Repository Admin
