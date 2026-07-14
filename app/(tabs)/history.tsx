@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PanResponder, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, PanResponder, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GraphView } from '@/components/GraphView';
@@ -137,17 +138,49 @@ export default function HistoryScreen() {
     }
   }
 
+  // 選択中の1日分を JSON にしてクリップボードへコピー
+  async function handleExport() {
+    if (!selectedSession) {
+      Alert.alert('エクスポートするデータがありません');
+      return;
+    }
+    const payload = {
+      date: selectedSession.date,
+      note: selectedSession.note,
+      volume: selectedSession.volume,
+      setCount: selectedSession.setCount,
+      exercises: groups.map((g) => ({
+        name: g.name,
+        sets: g.sets.map((s) => ({ weight: s.weight, reps: s.reps })),
+      })),
+    };
+    const json = JSON.stringify(payload, null, 2);
+    const ok = await Clipboard.setStringAsync(json);
+    if (ok) {
+      Alert.alert('コピーしました', `${payload.date}の履歴をJSON形式でコピーしました`);
+    } else {
+      Alert.alert('コピーに失敗しました');
+    }
+  }
+
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
       {/* ヘッダー */}
       <View className="flex-row items-end justify-between px-5 py-3">
         <Text className="text-xl font-bold text-gray-900">履歴</Text>
-        {activeTab === 'calendar' && (
-          <Text className="text-xs text-gray-500">
-            {viewYear}年{viewMonth}月 {monthlyStats.sessions}回・
-            {Math.round(monthlyStats.volume).toLocaleString('ja-JP')}kg
-          </Text>
-        )}
+        <View className="flex-row items-center gap-3">
+          {activeTab === 'calendar' && (
+            <Text className="text-xs text-gray-500">
+              {viewYear}年{viewMonth}月 {monthlyStats.sessions}回・
+              {Math.round(monthlyStats.volume).toLocaleString('ja-JP')}kg
+            </Text>
+          )}
+          {activeTab === 'calendar' && (
+            <Pressable onPress={handleExport} accessibilityLabel="エクスポート" hitSlop={8}>
+              <Ionicons name="download-outline" size={20} color="#6366f1" />
+            </Pressable>
+          )}
+        </View>
       </View>
 
       {/* タブ切り替え */}
